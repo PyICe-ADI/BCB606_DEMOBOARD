@@ -1,0 +1,272 @@
+[
+    {
+        "address": 0,
+        "bitfields": {
+            "en_ch0": {
+                "access": "R/W",
+                "bitoffset": 0,
+                "documentation": "\n\nWhen high enables power output on channel 0. This bit is only write-able if the channel is factory configured for I2C control.  Otherwise this bit is read only and indicates that channel 0 is on.",
+                "enums": {},
+                "parent": null,
+                "regoffset": 0,
+                "slicewidth": 1,
+                "width": 1
+            },
+            "en_ch1": {
+                "access": "R/W",
+                "bitoffset": 0,
+                "documentation": "\n\nWhen high enables power output on channel 1. This bit is only write-able if the channel is factory configured for I2C control.  Otherwise this bit is read only and indicates that channel 1 is on.",
+                "enums": {},
+                "parent": null,
+                "regoffset": 1,
+                "slicewidth": 1,
+                "width": 1
+            },
+            "en_ch2": {
+                "access": "R/W",
+                "bitoffset": 0,
+                "documentation": "\n\nWhen high enables power output on channel 2. This bit is only write-able if the channel is factory configured for I2C control.  Otherwise this bit is read only and indicates that channel 2 is on.",
+                "enums": {},
+                "parent": null,
+                "regoffset": 2,
+                "slicewidth": 1,
+                "width": 1
+            },
+            "en_ch3": {
+                "access": "R/W",
+                "bitoffset": 0,
+                "documentation": "\n\nWhen high enables power output on channel 3. This bit is only write-able if the channel is factory configured for I2C control.  Otherwise this bit is read only and indicates that channel 3 is on.",
+                "enums": {},
+                "parent": null,
+                "regoffset": 3,
+                "slicewidth": 1,
+                "width": 1
+            },
+            "en_ch4": {
+                "access": "R/W",
+                "bitoffset": 0,
+                "documentation": "\n\nWhen high enables power output on channel 4. This bit is only write-able if the channel is factory configured for I2C control.  Otherwise this bit is read only and indicates that channel 4 is on.",
+                "enums": {},
+                "parent": null,
+                "regoffset": 4,
+                "slicewidth": 1,
+                "width": 1
+            }
+        },
+        "bits": 5,
+        "functionalgroups": [
+            "I2C_APP"
+        ],
+        "width": 8
+    },
+    {
+        "address": 1,
+        "bitfields": {
+            "ack_sync": {
+                "access": "R",
+                "bitoffset": 0,
+                "documentation": "\n\nAcknowledgment (status) of switcher synchronization request.",
+                "enums": {},
+                "parent": null,
+                "regoffset": 1,
+                "slicewidth": 1,
+                "width": 1
+            },
+            "req_sync": {
+                "access": "R/W",
+                "bitoffset": 0,
+                "documentation": "\n\nRequest (enable) bit to synchronize switchers to the external clock.",
+                "enums": {},
+                "parent": null,
+                "regoffset": 0,
+                "slicewidth": 1,
+                "width": 1
+            }
+        },
+        "bits": 2,
+        "functionalgroups": [
+            "I2C_APP"
+        ],
+        "width": 8
+    },
+    {
+        "address": 2,
+        "bitfields": {
+            "wd_min_oper_period": {
+                "access": "R/W",
+                "bitoffset": 0,
+                "documentation": "\n\nMinimum watchdog period for cycles other than the first. 16mS/LSB. This register is only write-able during the boot period, otherwise writes are ignored.",
+                "enums": {},
+                "parent": null,
+                "regoffset": 0,
+                "slicewidth": 5,
+                "width": 5
+            }
+        },
+        "bits": 5,
+        "functionalgroups": [
+            "I2C_APP"
+        ],
+        "width": 8
+    },
+    {
+        "address": 3,
+        "bitfields": {
+            "wd_max_oper_period": {
+                "access": "R/W",
+                "bitoffset": 0,
+                "documentation": "\n\nMaximum watchdog period for cycles other than the first. 16mS/LSB + 16mS.  This register is only write-able during the boot window, otherwise writes are ignored.",
+                "enums": {},
+                "parent": null,
+                "regoffset": 0,
+                "slicewidth": 5,
+                "width": 5
+            }
+        },
+        "bits": 5,
+        "functionalgroups": [
+            "I2C_APP"
+        ],
+        "width": 8
+    },
+    {
+        "address": 4,
+        "bitfields": {
+            "wd_question": {
+                "access": "R",
+                "bitoffset": 0,
+                "documentation": "\n\nQA watchdog question. This is a pseudo-random 8-bit question.  It must be read, a CRC8 computed, and the answer written back to the answer register. See the wd_answer register for more information.",
+                "enums": {},
+                "parent": null,
+                "regoffset": 0,
+                "slicewidth": 8,
+                "width": 8
+            }
+        },
+        "bits": 8,
+        "functionalgroups": [
+            "I2C_APP"
+        ],
+        "width": 8
+    },
+    {
+        "address": 5,
+        "bitfields": {
+            "wd_answer": {
+                "access": "R/W",
+                "bitoffset": 0,
+                "documentation": "\n\nQA watchdog answer.  The correct answer is the CRC-8 of wd_question.  This CRC-8 function uses the same polynomial as the PEC in the I2C transaction.   In polynomial form it is:  X8 + X2 + X + 1.",
+                "enums": {},
+                "parent": null,
+                "regoffset": 0,
+                "slicewidth": 8,
+                "width": 8
+            }
+        },
+        "bits": 8,
+        "functionalgroups": [
+            "I2C_APP"
+        ],
+        "width": 8
+    },
+    {
+        "address": 6,
+        "bitfields": {
+            "msm_state": {
+                "access": "R",
+                "bitoffset": 0,
+                "documentation": "\n\nThis is the state of the main state machine.  It may be useful for system fault debugging.",
+                "enums": {
+                    "msm_active": 9,
+                    "msm_aibist": 5,
+                    "msm_aobist": 8,
+                    "msm_change_clk": 3,
+                    "msm_env_chck": 6,
+                    "msm_fault_aibist": 12,
+                    "msm_fault_aobist": 13,
+                    "msm_fault_dft": 11,
+                    "msm_fault_fuse": 10,
+                    "msm_fault_ov": 15,
+                    "msm_fault_rst_stuck": 16,
+                    "msm_fault_too_many_rst": 14,
+                    "msm_fuse_read": 1,
+                    "msm_off": 0,
+                    "msm_powerdown": 18,
+                    "msm_settle": 4,
+                    "msm_shutdown": 17,
+                    "msm_start_ref": 2,
+                    "msm_startup": 7
+                },
+                "parent": null,
+                "regoffset": 0,
+                "slicewidth": 6,
+                "width": 6
+            }
+        },
+        "bits": 6,
+        "functionalgroups": [
+            "I2C_APP"
+        ],
+        "width": 8
+    },
+    {
+        "address": 7,
+        "bitfields": {
+            "revid": {
+                "access": "R",
+                "bitoffset": 0,
+                "documentation": "\n\nRevision Number",
+                "enums": {},
+                "parent": null,
+                "regoffset": 0,
+                "slicewidth": 8,
+                "width": 8
+            }
+        },
+        "bits": 8,
+        "functionalgroups": [
+            "I2C_APP"
+        ],
+        "width": 8
+    },
+    {
+        "address": 8,
+        "bitfields": {
+            "rst_cnt": {
+                "access": "R",
+                "bitoffset": 0,
+                "documentation": "\n\nNumber of time RST pin has been asserted since power applied.",
+                "enums": {},
+                "parent": null,
+                "regoffset": 0,
+                "slicewidth": 3,
+                "width": 3
+            },
+            "wd_disable": {
+                "access": "R",
+                "bitoffset": 0,
+                "documentation": "\n\nWd_disable io cell output to core",
+                "enums": {},
+                "parent": null,
+                "regoffset": 6,
+                "slicewidth": 1,
+                "width": 1
+            },
+            "wd_disable_lat": {
+                "access": "R/W",
+                "bitoffset": 0,
+                "documentation": "\n\nA latched copy of the watchdog disable pin status, when the watchdog disable pin (deglitched) become high, then this bit is set.  It is only cleared by writing a 0 to it.",
+                "enums": {},
+                "parent": null,
+                "regoffset": 7,
+                "slicewidth": 1,
+                "width": 1
+            }
+        },
+        "bits": 5,
+        "functionalgroups": [
+            "I2C_APP"
+        ],
+        "width": 8
+    }
+]
