@@ -1,6 +1,8 @@
 import sys, os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "\\PyICe_driver")
-from PyICe import lab_instruments, lab_interfaces
+from PyICe.lab_instruments.TMP117 import TMP117
+from PyICe.lab_instruments.BR24H64 import BR24H64
+from PyICe import lab_interfaces
 from PyICe.lab_core import *
 import stowe_stowe_i2c
 
@@ -50,8 +52,8 @@ class BCB606(instrument):
         self.TMP117_port    = interface_factory.get_labcomm_twi_interface(comport_name=comport, src_id=PYICE_GUI_ADDRESS, dest_id=TMP117_ADDRESS,      baudrate=115200, timeout=4)
         self.EEPROM_port    = interface_factory.get_labcomm_twi_interface(comport_name=comport, src_id=PYICE_GUI_ADDRESS, dest_id=EEPROM_ADDRESS,      baudrate=115200, timeout=4)
         self.STOWE_port     = interface_factory.get_labcomm_twi_interface(comport_name=comport, src_id=PYICE_GUI_ADDRESS, dest_id=SMBUS_SVC_ADDRESS,   baudrate=115200, timeout=4)
-        self.TMP117         = lab_instruments.TMP117(interface_twi=self.TMP117_port, addr7=0x49)
-        self.EEPROM         = lab_instruments.BR24H64(interface_twi=self.EEPROM_port, addr7=0x50)
+        self.TMP117         = TMP117(interface_twi=self.TMP117_port, addr7=0x49)
+        self.EEPROM         = BR24H64(interface_twi=self.EEPROM_port, addr7=0x50)
         stowe_i2c           = stowe_stowe_i2c.stowe_i2c(twi_port=self.STOWE_port, addr7=stowe_stowe_i2c.LT3390_ADDR7)
         self.add_all_channels()
         channel_master.add(stowe_i2c)
