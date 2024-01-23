@@ -13,6 +13,7 @@
 #include "BCB606_board.h"           // For RST pin location
 #include "BCB606_smbus.h"           // For read byte and write byte commands
 
+uint8_t compute_watchdog_answer(uint8_t);
 void BCB606_watchdog_services();
 void set_wd_response_time_us();
 void get_wd_response_time_us();

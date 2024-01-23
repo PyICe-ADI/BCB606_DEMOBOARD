@@ -26,6 +26,8 @@
 #define TWO_POWER_32                (1 << 32)
 #define WD_RETRY_COUNT              0
 #define WD_USE_PEC                  1
+#define USE_LOOKUP_TABLE 			false
+#define CRC_POLY					0b100000111
 
 static uint32_t         WD_response_time_us = 48000; // 48ms, LT3390: √(min * max) = √(16ms * 144ms)
 static uint32_t         last_service_time;
@@ -99,11 +101,28 @@ void BCB606_watchdog_services()
     if (micros() - last_service_time >= WD_response_time_us)
     {
         question = read_byte(SMBUS_addr7, QUESTION_REG, WD_USE_PEC, WD_RETRY_COUNT);
-        response = WD_response_table[question];
+		if (USE_LOOKUP_TABLE)
+			response = WD_response_table[question];
+		else // Use algorithmic method
+			response = compute_watchdog_answer(question);
         write_byte(SMBUS_addr7, RESPONSE_REG, WD_USE_PEC, WD_RETRY_COUNT, response);
         last_service_time = micros();
     }
  }
+/****************************************************************************
+ * Algorithmic Watchdog Computation  (Use Option USE_TABLE = false;         *
+ ****************************************************************************/
+uint8_t compute_watchdog_answer(uint8_t question)
+{
+	for (uint8_t index=0; index<8; index++)
+	{
+		if (question & 0x80)
+			question = (question << 1) ^ 0x07;
+		else
+			question <<= 1;
+	}
+	return question;
+}
 /****************************************************************************
  * Set the Watchdog Resonse time in µs. Expects a 4 byte 32 bit value       *
  ****************************************************************************/
