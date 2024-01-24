@@ -7,34 +7,39 @@ from PyICe.lab_core import *
 import stowe_stowe_i2c
 
 # Client list
-PYICE_GUI_ADDRESS           = 1
-ENABLE_PIN_ADDRESS          = 2
-RST_PIN_ADDRESS             = 3
-WDDIS_PIN_ADDRESS           = 4
-SMBUS_SVC_ADDRESS           = 5
-IDENTIFY_ADDRESS            = 6
-WATCHDOG_ADDRESS            = 7
-EEPROM_ADDRESS              = 8
-TMP117_ADDRESS              = 9
-
-EMPTY                       = ""
-SET_EN_CMD                  = "\x01"
-GET_EN_CMD                  = "\x02"
-STOWE_ON                    = SET_EN_CMD + "\x01"
-STOWE_OFF                   = SET_EN_CMD + "\x00"
-STOWE_HOOK                  = SET_EN_CMD + "\x02"
-SET_WDDIS_STATE             = "\x01"
-WDDIS_ON                    = SET_WDDIS_STATE + "\x01"
-WDDIS_OFF                   = SET_WDDIS_STATE + "\x00"
-WDDIS_GET_STATE             = "\x02"
-WD_SET_RESPONSE_TIME_us     = "\x01" # Should be followed by 4 bytes for the micros() 32 bit value.
-WD_GET_RESPONSE_TIME_us     = "\x04"
-WD_GET_SERVICE_STATE        = "\x05"
-WD_ENABLE_SERVICE           = "\x02" # Up to 2^32 µs or 71.58 minutes.
-WD_DISABLE_SERVICE          = "\x03"
-IDENT_WRITE_SCRATCHPAD      = "\x01"
-IDENT_READ_SCRATCHPAD       = "\x02"
-IDENT_GET_SERIALNUM         = "\x03"
+PYICE_GUI_ADDRESS               = 1
+ENABLE_PIN_ADDRESS              = 2
+RST_PIN_ADDRESS                 = 3
+WDDIS_PIN_ADDRESS               = 4
+SMBUS_SVC_ADDRESS               = 5
+IDENTIFY_ADDRESS                = 6
+WATCHDOG_ADDRESS                = 7
+EEPROM_ADDRESS                  = 8
+TMP117_ADDRESS                  = 9
+    
+EMPTY                           = ""
+SET_EN_CMD                      = "\x01"
+GET_EN_CMD                      = "\x02"
+STOWE_ON                        = SET_EN_CMD + "\x01"
+STOWE_OFF                       = SET_EN_CMD + "\x00"
+STOWE_HOOK                      = SET_EN_CMD + "\x02"
+SET_WDDIS_STATE                 = "\x01"
+WDDIS_ON                        = SET_WDDIS_STATE + "\x01"
+WDDIS_OFF                       = SET_WDDIS_STATE + "\x00"
+WDDIS_GET_STATE                 = "\x02"
+WD_SET_RESPONSE_TIME_us         = "\x01" # Should be followed by 4 bytes for the micros() 32 bit value.
+WD_GET_RESPONSE_TIME_us         = "\x04"
+WD_GET_SERVICE_STATE            = "\x05"
+WD_ENABLE_SERVICE               = "\x02" # Up to 2^32 µs or 71.58 minutes.
+WD_DISABLE_SERVICE              = "\x03"
+WD_SET_METHOD_LOOKUP_TABLE      = "\x07"
+WD_SET_METHOD_ALGORITHMIC       = "\x08"
+WD_GET_SERVICE_METHOD           = "\x09"
+WD_SERVICE_METHOD_LOOKUP        = "\x00"
+WD_SERVICE_METHOD_ALGORITHMIC   = "\x01"
+IDENT_WRITE_SCRATCHPAD          = "\x01"
+IDENT_READ_SCRATCHPAD           = "\x02"
+IDENT_GET_SERIALNUM             = "\x03"
 
 class BCB606(instrument):
     ''' Stowe Demo Board, a base board that accepts the Stowe bench evaluation target board but can be given to customers.
@@ -92,11 +97,13 @@ class BCB606(instrument):
         self.add_channel_scratchpad(self._base_name + "_scratchpad")
         self.add_channel_serialnum(self._base_name + "_baseboard_serialnum")
         self.add_channel_wd_enable(self._base_name + "_wd_svc_enable")
+        self.add_channel_wd_method(self._base_name + "_wd_svc_method")
         self.add_channel_EEPROM(self._base_name + "_targetboard_serialnum")
         self.add_channel_wd_response_time(self._base_name + "_wd_svc_time")
 
     def add_channel_enablepin(self, channel_name):
         def _set_enable_pin(value):
+            payload = None
             if value in [1, True, "ON"]:
                 payload = STOWE_ON
             elif value in [0, False, "OFF"]:
@@ -105,7 +112,8 @@ class BCB606(instrument):
                 payload = STOWE_HOOK
             else:
                 raise ValueError((f'\n\nBCB606: Sorry don\'t know how to set Stowe\'s Enable pin to "{value}".'))
-            self._send_payload(port=self.ENABLE_port, payload=payload)
+            if payload != None:
+                self._send_payload(port=self.ENABLE_port, payload=payload)
         def _get_enable_pin():
             self._send_payload(port=self.ENABLE_port, payload=GET_EN_CMD)
             return self._get_payload(port=self.ENABLE_port, datatype="integer")
@@ -180,7 +188,27 @@ class BCB606(instrument):
         self.wd_service_enable_channel = integer_channel(name=channel_name, size=1, write_function=_wd_enable)
         self.wd_service_enable_channel._read = _get_wd_service_state
         return self._add_channel(self.wd_service_enable_channel)
-        
+
+    def add_channel_wd_method(self, channel_name):
+        def _wd_set_service_method(method):
+            paylaod = None
+            if method in ["LOOKUP", WD_SERVICE_METHOD_LOOKUP]:
+                payload = WD_SET_METHOD_LOOKUP_TABLE
+            elif method in ["ALGORITHMIC", WD_SERVICE_METHOD_ALGORITHMIC]:
+                payload = WD_SET_METHOD_ALGORITHMIC
+            else:
+                raise ValueError((f'\n\nBCB606: Sorry don\'t know how to set watchdog service method to "{method}".'))
+            if payload != None:
+                self._send_payload(port=self.WATCHDOG_port, payload=payload)
+        def _get_wd_service_method():
+            self._send_payload(port=self.WATCHDOG_port, payload=WD_GET_SERVICE_METHOD)
+            return self._get_payload(self.WATCHDOG_port, datatype="integer")
+        self.wd_method_channel = channel(name=channel_name, write_function=_wd_set_service_method)
+        self.wd_method_channel._read = _get_wd_service_method
+        self.wd_method_channel.add_preset("LOOKUP", "Use the Lookup Table Method")
+        self.wd_method_channel.add_preset("ALGORITHMIC", "Use the Algorithmic Method")
+        return self._add_channel(self.wd_method_channel)
+
     def add_channel_EEPROM(self, channel_name):
         def get_board_id():
             eeprom_records = self.EEPROM.read_dictionary(verbose=self.verbose)
