@@ -1,8 +1,6 @@
-CRC_POLY = 0b100000111
 
 watchdog_cross_check = \
-[
-  0000, 0X07, 0X0E, 0X09, 0X1C, 0X1B, 0X12, 0X15,
+ [0000, 0X07, 0X0E, 0X09, 0X1C, 0X1B, 0X12, 0X15,
   0X38, 0X3F, 0X36, 0X31, 0X24, 0X23, 0X2A, 0X2D,
   0X70, 0X77, 0X7E, 0X79, 0X6C, 0X6B, 0X62, 0X65,
   0X48, 0X4F, 0X46, 0X41, 0X54, 0X53, 0X5A, 0X5D,
@@ -33,18 +31,14 @@ watchdog_cross_check = \
   0XAE, 0XA9, 0XA0, 0XA7, 0XB2, 0XB5, 0XBC, 0XBB,
   0X96, 0X91, 0X98, 0X9F, 0X8A, 0X8D, 0X84, 0X83,
   0XDE, 0XD9, 0XD0, 0XD7, 0XC2, 0XC5, 0XCC, 0XCB,
-  0XE6, 0XE1, 0XE8, 0XEF, 0XFA, 0XFD, 0XF4, 0XF3
-]
+  0XE6, 0XE1, 0XE8, 0XEF, 0XFA, 0XFD, 0XF4, 0XF3]
+
+CRC_POLY = 0b100000111
 
 def get_crc(question):
     for i in range(8):
-        if (question & 0x80) != 0:
-            question = (question << 1)&0xFF ^ 0x07
-        else:
-            question = (question << 1)&0xFF
+        question = (question << 1)&0xFF ^ (CRC_POLY&0xFF) if (question&0x80) else (question << 1)&0xFF
     return question
 
-
-
-testval = 0x45
-print(f"Input....{testval}, Returned.....{hex(get_crc(testval))}, should get.....{hex(watchdog_cross_check[testval])}")
+for testval in range(256):
+    print(f"Input....{testval}, Returned.....{hex(get_crc(testval))}, Should be.....{hex(watchdog_cross_check[testval])}")

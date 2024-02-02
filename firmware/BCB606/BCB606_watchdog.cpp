@@ -143,17 +143,12 @@ if (micros() - last_service_time >= WD_response_time_us)
 }
 }
 /****************************************************************************
- * Algorithmic Watchdog Computation  (Use Option USE_TABLE = false;         *
+ * Algorithmic Watchdog Computation  (Use Option USE_TABLE = false)         *
  ****************************************************************************/
 uint8_t compute_watchdog_answer(uint8_t question)
 {
 	for (uint8_t index=0; index<8; index++)
-	{
-		if (question & 0x80)
-			question = (question << 1) ^ 0x07;
-		else
-			question <<= 1;
-	}
+		question = question & 0x80 ? (question << 1) ^ (CRC_POLY&0xFF) : question <<= 1;
 	return question;
 }
 /****************************************************************************
