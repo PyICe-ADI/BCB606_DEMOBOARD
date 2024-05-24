@@ -15,8 +15,10 @@ void read_register_list();
 void enable_stream_mode(); 
 void disable_stream_mode();
 void write_register_list();
-void set_list_and_stream();
+void smbus_read_register();
+void smbus_write_register();
 void BCB606_service_smbus();
-void set_list_and_read_list();  
+void set_reg_list_and_stream();
+void set_reg_list_and_read_list();
 
 #endif

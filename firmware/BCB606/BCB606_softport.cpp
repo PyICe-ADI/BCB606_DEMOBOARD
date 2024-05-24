@@ -1,7 +1,7 @@
 /****************************************************************************
  * BCB606 Soft I²C port                                                     *
- * Steve Martin                                                            	*
- * June 1, 2023                                                            	*
+ * Steve Martin                                                             *
+ * June 1, 2023                                                             *
  ****************************************************************************/
 //  https://www.arduino.cc/reference/en/libraries/softwire/
 //  https://github.com/stevemarple/SoftWire/blob/master/examples/SoftWire_MLX90614/SoftWire_MLX90614.ino
@@ -13,9 +13,6 @@ SoftWire softport(AUX_SDA, AUX_SCL);
 char spTxBuffer[2]; // These buffers must be at least as large as the largest read or write you perform.
 char spRxBuffer[1];
 AsyncDelay readInterval;
-
-#define BYTE_SIZE 8     // Bits
-#define WORD_SIZE 16    // Bits
 
 /****************************************************************************
  * Setup the softwire port                                                  *
@@ -32,43 +29,48 @@ void setup_softport()
 /****************************************************************************
  * Write Register, flexible size, 8 or 16 so SMBus Write-Byte or Write-Word *
  ****************************************************************************/
-void softport_SMBUS_write_register(uint8_t address, uint8_t command_code, uint8_t size, bool use_pec, uint16_t data)
+SMBUS_reply softport_SMBUS_write_register(uint8_t address, uint8_t command_code, bool use_pec, uint8_t data_size, uint8_t lo_byte, uint8_t hi_byte)
 {
+    SMBUS_reply reply={.status=0, .lo_byte=0, .hi_byte=0};
+
     softport.startWrite(address);
     softport.llWrite(command_code);
-    softport.llWrite(lowByte(data));
-    if (size == WORD_SIZE) softport.llWrite(highByte(data));
+    softport.llWrite(lo_byte);
+    if (data_size == WORD_SIZE)
+        softport.llWrite(hi_byte);
     softport.stop();
+    return reply;
 }
 /****************************************************************************
  * Read Register, flexible size, 8 or 16 so SMBus Read-Byte or Read-Word    *
  ****************************************************************************/
-uint16_t softport_SMBUS_read_register(uint8_t address, uint8_t command_code, uint8_t size, bool use_pec)
+SMBUS_reply softport_SMBUS_read_register(uint8_t address, uint8_t command_code, bool use_pec, uint8_t data_size)
 {
-    uint8_t hibyte;
-    uint8_t lobyte;
+    SMBUS_reply reply={.status=0, .lo_byte=0, .hi_byte=0};
+
     softport.startWrite(address);
     softport.llWrite(command_code);
     softport.stop();
     softport.startRead(address);
-    if (size == WORD_SIZE)
+    if (data_size == WORD_SIZE)
     {
-        softport.readThenAck(lobyte);
-        softport.readThenNack(hibyte);
+        softport.readThenAck(reply.lo_byte);
+        softport.readThenNack(reply.hi_byte);
     }
     else
-        softport.readThenNack(lobyte);
+        softport.readThenNack(reply.lo_byte);
     softport.stop();
-    return (hibyte << BYTE_SIZE) | lobyte;
+    return reply;
 }
 /****************************************************************************
  * SMBus Receive Byte                                                       *
  ****************************************************************************/
-uint8_t softport_SMBUS_receive_byte(uint8_t address, bool use_pec)
+SMBUS_reply softport_SMBUS_receive_byte(uint8_t address, bool use_pec)
 {
-    uint8_t data;
+    SMBUS_reply reply={.status=0, .lo_byte=0, .hi_byte=0};
+
     softport.startRead(address);
-    softport.readThenNack(data);
+    softport.readThenNack(reply.lo_byte);
     softport.stop();
-    return data;
+    return reply;
 }

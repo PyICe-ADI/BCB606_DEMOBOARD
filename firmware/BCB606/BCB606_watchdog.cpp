@@ -5,38 +5,14 @@
  ****************************************************************************/
 #include "BCB606_watchdog.h"
 
-// Payload Commands
-#define SET_WD_RESPONSE_TIME_us     1 // Should be followed by 4 bytes for the micros() 32 bit value.
-#define ENABLE_WD_SERVICE           2 // Up to 2^32 µs or 71.58 minutes.
-#define DISABLE_WD_SERVICE          3
-#define GET_WD_RESPONSE_TIME_us     4
-#define GET_WD_SERVICE_STATE        5
-#define SET_ADDR7                   6
-#define SET_METHOD_LOOKUP_TABLE 	7
-#define SET_METHOD_ALGORITHMIC 		8
-#define GET_SERVICE_METHOD      	9
-
-// Byte location enums
-#define COMMAND_BYTE                0
-#define START_OF_DATA_OUT_BYTE      0
-#define START_OF_DATA_IN_BYTE       1
-
-// Register locations
-#define QUESTION_REG                4
-#define RESPONSE_REG                5
-
-// Others
-#define TWO_POWER_32                (1 << 32)
-#define WD_RETRY_COUNT              0
-#define WD_USE_PEC                  1
-#define USE_LOOKUP_TABLE 			0
-#define USE_ALGORITHMIC 			1
-#define CRC_POLY					0b100000111
-
 static uint32_t         WD_response_time_us = 48000; // 48ms, LT3390: √(min * max) = √(16ms * 144ms)
 static uint32_t         last_service_time;
 static bool             WD_service_watchdog = false;
-static uint8_t			watchdog_service_method = 0;
+static bool             use_pec = true;
+static uint8_t          question_addr = 4;
+static uint8_t          answer_addr = 5;
+static uint8_t          crc_poly = 0; //0b100000111;
+static uint8_t          watchdog_service_method = 0;
 static uint8_t          SMBUS_addr7 = 0x69;
 const PROGMEM uint8_t   WD_response_table[256] =
 {
@@ -82,15 +58,19 @@ void BCB606_watchdog_services()
     {
         switch(watchdog_mailbox.inbox[COMMAND_BYTE])
         {
-            case SET_WD_RESPONSE_TIME_us:	set_wd_response_time_us();	break;
-            case GET_WD_RESPONSE_TIME_us:	get_wd_response_time_us();	break;
-			case SET_METHOD_LOOKUP_TABLE:	set_method_lookup_table();	break;
-			case SET_METHOD_ALGORITHMIC: 	set_method_algorithmic(); 	break;
-            case GET_WD_SERVICE_STATE:   	get_wd_service_state();   	break;
-			case GET_SERVICE_METHOD: 		get_service_method(); 		break;
-            case DISABLE_WD_SERVICE:     	disable_wd_service();     	break;
-            case ENABLE_WD_SERVICE:      	enable_wd_service();      	break;
-            case SET_ADDR7:              	set_addr7();              	break;
+            case SET_WD_RESPONSE_TIME_us  : set_wd_response_time_us();  break;
+            case GET_WD_RESPONSE_TIME_us  : get_wd_response_time_us();  break;
+            case SET_METHOD_LOOKUP_TABLE  : set_method_lookup_table();  break;
+            case SET_METHOD_ALGORITHMIC   : set_method_algorithmic();   break;
+            case GET_WD_SERVICE_STATE     : get_wd_service_state();     break;
+            case GET_SERVICE_METHOD       : get_service_method();       break;
+            case DISABLE_WD_SERVICE       : disable_wd_service();       break;
+            case ENABLE_WD_SERVICE        : enable_wd_service();        break;
+            case SET_QUESTION_ADDR        : set_question_addr();        break;
+            case SET_ANSWER_ADDR          : set_answer_addr();          break;
+            case SET_CRC_POLY             : set_crc_poly();             break;
+            case SET_USE_PEC              : set_use_pec();              break;
+            case SET_ADDR7                : set_addr7();                break;
         }
         watchdog_mailbox.inbox_status = PACKET_ABSENT;
     }
@@ -104,14 +84,14 @@ void BCB606_watchdog_services()
  ****************************************************************************/
 void set_method_lookup_table()
 {
-	watchdog_service_method = USE_LOOKUP_TABLE;
+    watchdog_service_method = USE_LOOKUP_TABLE;
 }
 /****************************************************************************
  * Set Watchdog Service Method to Algorithmic                               *
  ****************************************************************************/
 void set_method_algorithmic()
 {
-	watchdog_service_method = USE_ALGORITHMIC;
+    watchdog_service_method = USE_ALGORITHMIC;
 }
 /****************************************************************************
  * Get Watchdog Service Method                                               *
@@ -128,18 +108,19 @@ void get_service_method()
  ****************************************************************************/
 void service_watchdog()
 {
-uint8_t question, response;
+uint8_t response;
+SMBUS_reply reply={.status=0, .lo_byte=0, .hi_byte=0};
 
 if (micros() - last_service_time >= WD_response_time_us)
 {
-	question = read_byte(SMBUS_addr7, QUESTION_REG, WD_USE_PEC, WD_RETRY_COUNT);
-	if (watchdog_service_method == USE_LOOKUP_TABLE)
-		response = WD_response_table[question];
-	else if (watchdog_service_method == USE_ALGORITHMIC)
-		response = compute_watchdog_answer(question);
-	else; // Shouldn't happen
-	write_byte(SMBUS_addr7, RESPONSE_REG, WD_USE_PEC, WD_RETRY_COUNT, response);
-	last_service_time = micros();
+    reply = read_register(SMBUS_addr7, question_addr, use_pec, BYTE_SIZE);
+    if (watchdog_service_method == USE_LOOKUP_TABLE)
+        response = WD_response_table[reply.lo_byte];
+    else if (watchdog_service_method == USE_ALGORITHMIC)
+        response = compute_watchdog_answer(reply.lo_byte);
+    else; // Shouldn't happen
+    reply = write_register(SMBUS_addr7, answer_addr, use_pec, BYTE_SIZE, response, 0);
+    last_service_time = micros();
 }
 }
 /****************************************************************************
@@ -147,9 +128,9 @@ if (micros() - last_service_time >= WD_response_time_us)
  ****************************************************************************/
 uint8_t compute_watchdog_answer(uint8_t question)
 {
-	for (uint8_t index=0; index<8; index++)
-		question = question & 0x80 ? (question << 1) ^ (CRC_POLY&0xFF) : question <<= 1;
-	return question;
+    for (uint8_t index=0; index<8; index++)
+        question = question & 0x80 ? (question << 1) ^ (CRC_POLY&0xFF) : question <<= 1;
+    return question;
 }
 /****************************************************************************
  * Set the Watchdog Resonse time in µs. Expects a 4 byte 32 bit value       *
@@ -204,4 +185,32 @@ void get_wd_service_state()
 void set_addr7()
 {
     SMBUS_addr7 = watchdog_mailbox.inbox[START_OF_DATA_IN_BYTE];
+}
+/****************************************************************************
+ * Set Use PEC                                                              *
+ ****************************************************************************/
+void set_use_pec()
+{
+    use_pec = watchdog_mailbox.inbox[START_OF_DATA_IN_BYTE];
+}
+/****************************************************************************
+ * Set Question Address                                                     *
+ ****************************************************************************/
+void set_question_addr()
+{
+    question_addr = watchdog_mailbox.inbox[START_OF_DATA_IN_BYTE];
+}
+/****************************************************************************
+ * Set Answer Address                                                       *
+ ****************************************************************************/
+void set_answer_addr()
+{
+    answer_addr = watchdog_mailbox.inbox[START_OF_DATA_IN_BYTE];
+}
+/****************************************************************************
+ * Set CRC Polynomial                                                       *
+ ****************************************************************************/
+void set_crc_poly()
+{
+    crc_poly = watchdog_mailbox.inbox[START_OF_DATA_IN_BYTE];
 }

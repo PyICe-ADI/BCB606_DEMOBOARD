@@ -37,9 +37,6 @@
 #define USE_PEC                 3 // Expect 1 or 0
 #define DATA_SIZE               4 // In Bits not Bytes (8 or 16)
 #define START_OF_SMBUS_DATA_IN  5 // Data goes from here to the remainder of the payload
-
-// Others Enums
-#define RETRY_COUNT             0
 #define START_OF_DATA_OUT       0
 
 #endif
