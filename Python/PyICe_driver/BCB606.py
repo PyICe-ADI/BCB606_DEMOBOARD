@@ -293,6 +293,7 @@ class BCB606(instrument):
         
     def add_channel_TMP117(self, channel_name):
         new_channel = channel(channel_name, read_function=self.TMP117.read_temp)
+        new_channel.set_display_format_str(fmt_str="0.2f", suffix='°C')
         return self._add_channel(new_channel)
         
     def reset_board(self):
