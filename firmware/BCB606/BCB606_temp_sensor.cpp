@@ -22,6 +22,9 @@ void BCB606_get_temperature_sensor()
                                                         tmp117_mailbox.inbox[DATA_SIZE],
                                                         tmp117_mailbox.inbox[START_OF_SMBUS_DATA_IN + 0],
                                                         tmp117_mailbox.inbox[START_OF_SMBUS_DATA_IN + 1]);
+                tmp117_mailbox.outbox[START_OF_DATA_OUT] = reply.status;
+                tmp117_mailbox.outbox_msg_size = 1;
+                tmp117_mailbox.outbox_status = PACKET_PRESENT;
                 break;
             case SMBUS_READ_REGISTER:
                 reply = softport_SMBUS_read_register(   tmp117_mailbox.inbox[ADDR7],
@@ -30,8 +33,10 @@ void BCB606_get_temperature_sensor()
                                                         tmp117_mailbox.inbox[DATA_SIZE]);
                 tmp117_mailbox.to_id = tmp117_mailbox.from_id;
                 tmp117_mailbox.outbox_msg_size = TMP117_OUTBOX_SIZE;
-                tmp117_mailbox.outbox[START_OF_DATA_OUT + 0] = reply.lo_byte;   // TMP117 is *NOT* SMBus Endianness
-                tmp117_mailbox.outbox[START_OF_DATA_OUT + 1] = reply.hi_byte;   // Swapping is done in the PyICe driver however
+                tmp117_mailbox.outbox[START_OF_DATA_OUT + 0] = reply.status;
+                tmp117_mailbox.outbox[START_OF_DATA_OUT + 1] = reply.lo_byte;   // TMP117 is *NOT* SMBus Endianness
+                tmp117_mailbox.outbox[START_OF_DATA_OUT + 2] = reply.hi_byte;   // Swapping is done in the PyICe driver however
+                tmp117_mailbox.outbox_msg_size = 3;
                 tmp117_mailbox.outbox_status = PACKET_PRESENT;
                 break;
         }

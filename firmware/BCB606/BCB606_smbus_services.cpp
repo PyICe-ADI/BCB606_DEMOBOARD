@@ -9,7 +9,7 @@ static uint16_t SMBUS_read_list_size = 0; // Can be up to 256
 static bool     SMBUS_stream_mode = false;
 static uint8_t  SMBUS_cmnd_code_list[256] = {0};
 /****************************************************************************
- *                                                                          *
+ * Menu                                                                     *
  ****************************************************************************/
 void BCB606_service_smbus()
 {
@@ -55,11 +55,11 @@ void read_register_list()
                                 SMBUS_cmnd_code_list[(uint8_t)cmnd_code],
                                 smbus_services_mailbox.inbox[USE_PEC],
                                 smbus_services_mailbox.inbox[DATA_SIZE]);
-        smbus_services_mailbox.outbox[(uint8_t)cmnd_code + START_OF_DATA_OUT] = reply.lo_byte;  // TODO make support Word parts too?
-                                                                                                // TODO Make a new reply mailbox and send the reply.status to it?
+        smbus_services_mailbox.outbox[START_OF_DATA_OUT] = reply.status;
+        smbus_services_mailbox.outbox[(uint8_t)cmnd_code + START_OF_DATA_OUT + 1] = reply.lo_byte;  // TODO make support Word parts too?
     }
     smbus_services_mailbox.to_id = smbus_services_mailbox.from_id;
-    smbus_services_mailbox.outbox_msg_size = SMBUS_read_list_size;
+    smbus_services_mailbox.outbox_msg_size = SMBUS_read_list_size + 1;
     smbus_services_mailbox.outbox_status = PACKET_PRESENT;
 }
 /****************************************************************************
@@ -72,11 +72,13 @@ void smbus_read_register()
                             smbus_services_mailbox.inbox[COMMAND_CODE],
                             smbus_services_mailbox.inbox[USE_PEC],
                             smbus_services_mailbox.inbox[DATA_SIZE]);
-    smbus_services_mailbox.outbox[START_OF_DATA_OUT] = reply.lo_byte;
+                            
+    smbus_services_mailbox.outbox[START_OF_DATA_OUT] = reply.status;
+    smbus_services_mailbox.outbox[START_OF_DATA_OUT + 1] = reply.lo_byte;
     if (smbus_services_mailbox.inbox[DATA_SIZE]==WORD_SIZE)
-        smbus_services_mailbox.outbox[START_OF_DATA_OUT + 1] = reply.hi_byte;
+        smbus_services_mailbox.outbox[START_OF_DATA_OUT + 2] = reply.hi_byte;
     smbus_services_mailbox.to_id = smbus_services_mailbox.from_id;
-    smbus_services_mailbox.outbox_msg_size = smbus_services_mailbox.inbox[DATA_SIZE]/BYTE_SIZE;
+    smbus_services_mailbox.outbox_msg_size = smbus_services_mailbox.inbox[DATA_SIZE] / BYTE_SIZE + 1;
     smbus_services_mailbox.outbox_status = PACKET_PRESENT;
 }
 /****************************************************************************
@@ -91,6 +93,9 @@ void smbus_write_register()
                             smbus_services_mailbox.inbox[DATA_SIZE],
                             smbus_services_mailbox.inbox[START_OF_SMBUS_DATA_IN],
                             smbus_services_mailbox.inbox[DATA_SIZE]==BYTE_SIZE ? 0 : smbus_services_mailbox.inbox[START_OF_SMBUS_DATA_IN + 1]);
+    smbus_services_mailbox.outbox_msg_size = 1;
+    smbus_services_mailbox.outbox[START_OF_DATA_OUT] = reply.status;
+    smbus_services_mailbox.outbox_status = PACKET_PRESENT;
 }
 /****************************************************************************
  * Write a bunch of registers to the part                                   *
@@ -108,6 +113,9 @@ void write_register_list()
                                     smbus_services_mailbox.inbox[DATA_SIZE],
                                     smbus_services_mailbox.inbox[START_OF_SMBUS_DATA_IN + cmnd_code + 1],
                                     smbus_services_mailbox.inbox[DATA_SIZE]==BYTE_SIZE ? 0 : smbus_services_mailbox.inbox[START_OF_SMBUS_DATA_IN + cmnd_code + 2]);
+    smbus_services_mailbox.outbox[START_OF_DATA_OUT] = reply.status;
+    smbus_services_mailbox.outbox_msg_size = 1;
+    smbus_services_mailbox.outbox_status = PACKET_PRESENT;
     }
 }
 /****************************************************************************

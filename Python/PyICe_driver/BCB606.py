@@ -6,7 +6,9 @@ from PyICe import lab_interfaces
 from PyICe.lab_core import *
 import stowe_stowe_i2c
 
-# Client list
+###################################################
+# Client list                                     #
+###################################################
 PYICE_GUI_ADDRESS               = 1
 ENABLE_PIN_ADDRESS              = 2
 RST_PIN_ADDRESS                 = 3
@@ -27,16 +29,28 @@ SET_WDDIS_STATE                 = "\x01"
 WDDIS_ON                        = SET_WDDIS_STATE + "\x01"
 WDDIS_OFF                       = SET_WDDIS_STATE + "\x00"
 WDDIS_GET_STATE                 = "\x02"
-WD_SET_RESPONSE_TIME_us         = "\x01" # Should be followed by 4 bytes for the micros() 32 bit value.
-WD_GET_RESPONSE_TIME_us         = "\x04"
-WD_GET_SERVICE_STATE            = "\x05"
-WD_ENABLE_SERVICE               = "\x02" # Up to 2^32 µs or 71.58 minutes.
-WD_DISABLE_SERVICE              = "\x03"
-WD_SET_METHOD_LOOKUP_TABLE      = "\x07"
-WD_SET_METHOD_ALGORITHMIC       = "\x08"
-WD_GET_SERVICE_METHOD           = "\x09"
-WD_SERVICE_METHOD_LOOKUP        = "\x00"
-WD_SERVICE_METHOD_ALGORITHMIC   = "\x01"
+###################################################
+# Watchdog Service Options                        #
+###################################################
+WD_SET_SERVICE_STATE            = "\x00"
+WD_GET_SERVICE_STATE            = "\x01"
+WD_SET_RESPONSE_TIME_us         = "\x02" # Should be followed by 4 bytes for the micros() 32 bit value. Up to 2^32 µs or 71.58 minutes.
+WD_GET_RESPONSE_TIME_us         = "\x03" # Returns 4 bytes
+WD_SET_ADDR7                    = "\x04"
+WD_GET_ADDR7                    = "\x05"
+WD_SET_SERVICE_METHOD           = "\x06"
+WD_GET_SERVICE_METHOD           = "\x07"
+WD_SET_USE_PEC                  = "\x08"
+WD_GET_USE_PEC                  = "\x09"
+WD_SET_QUESTION_ADDR            = "\x0A"
+WD_GET_QUESTION_ADDR            = "\x0B"
+WD_SET_ANSWER_ADDR              = "\x0C"
+WD_GET_ANSWER_ADDR              = "\x0D"
+WD_SET_CRC_POLY                 = "\x0E"
+WD_GET_CRC_POLY                 = "\x0F"
+WD_SERVICE_METHOD_LOOKUP        = 0 # Enums for Watchdog
+WD_SERVICE_METHOD_ALGORITHMIC   = 1 # Enums for Watchdog
+
 IDENT_WRITE_SCRATCHPAD          = "\x01"
 IDENT_READ_SCRATCHPAD           = "\x02"
 IDENT_GET_SERIALNUM             = "\x03"
@@ -95,11 +109,16 @@ class BCB606(instrument):
         self.add_channel_identify(self._base_name + "_board_id")
         self.add_channel_TMP117(self._base_name + "_temp_sensor")
         self.add_channel_scratchpad(self._base_name + "_scratchpad")
-        self.add_channel_serialnum(self._base_name + "_baseboard_serialnum")
+        self.add_channel_wd_use_pec(self._base_name + "_wd_use_pec")
         self.add_channel_wd_enable(self._base_name + "_wd_svc_enable")
         self.add_channel_wd_method(self._base_name + "_wd_svc_method")
         self.add_channel_EEPROM(self._base_name + "_targetboard_serialnum")
         self.add_channel_wd_response_time(self._base_name + "_wd_svc_time")
+        self.add_channel_serialnum(self._base_name + "_baseboard_serialnum")
+        self.add_channel_wd_answer_addr(self._base_name + "_wd_answer_addr")
+        self.add_channel_wd_target_addr7(self._base_name + "_wd_target_addr7")
+        self.add_channel_wd_question_addr(self._base_name + "_wd_question_addr")
+        self.add_channel_wd_crc_polynomial(self._base_name + "_wd_crc_polynomial")
 
     def add_channel_enablepin(self, channel_name):
         def _set_enable_pin(value):
@@ -179,31 +198,87 @@ class BCB606(instrument):
         self.wd_service_time_channel.set_display_format_str('5.3f')
         return self._add_channel(self.wd_service_time_channel)
 
+    def add_channel_wd_question_addr(self, channel_name):
+        def _set_wd_question_addr(address):
+            payload = WD_SET_QUESTION_ADDR + int.to_bytes(address, length=1, byteorder="big").decode("latin-1")
+            self._send_payload(port=self.WATCHDOG_port, payload=payload)
+        def _get_wd_question_addr():
+            self._send_payload(port=self.WATCHDOG_port, payload=WD_GET_QUESTION_ADDR)
+            return self._get_payload(port=self.WATCHDOG_port, datatype="integer")
+        self.wd_service_question_addr_channel = channel(channel_name, write_function=lambda address: _set_wd_question_addr(address))
+        self.wd_service_question_addr_channel._read = _get_wd_question_addr
+        return self._add_channel(self.wd_service_question_addr_channel)
+
+    def add_channel_wd_answer_addr(self, channel_name):
+        def _set_wd_answer_addr(address):
+            payload = WD_SET_ANSWER_ADDR + int.to_bytes(address, length=1, byteorder="big").decode("latin-1")
+            self._send_payload(port=self.WATCHDOG_port, payload=payload)
+        def _get_wd_answer_addr():
+            self._send_payload(port=self.WATCHDOG_port, payload=WD_GET_ANSWER_ADDR)
+            return self._get_payload(port=self.WATCHDOG_port, datatype="integer")
+        self.wd_service_answer_addr_channel = channel(channel_name, write_function=lambda address: _set_wd_answer_addr(address))
+        self.wd_service_answer_addr_channel._read = _get_wd_answer_addr
+        return self._add_channel(self.wd_service_answer_addr_channel)
+
     def add_channel_wd_enable(self, channel_name):
-        def _wd_enable(wddis_enable):
-            self._send_payload(port=self.WATCHDOG_port, payload=WD_ENABLE_SERVICE if wddis_enable else WD_DISABLE_SERVICE)
+        def _set_wd_service_state(state):
+            payload = WD_SET_SERVICE_STATE + int.to_bytes(1 if state else 0, length=1, byteorder="big").decode("latin-1")
+            self._send_payload(port=self.WATCHDOG_port, payload=payload)
         def _get_wd_service_state():
             self._send_payload(port=self.WATCHDOG_port, payload=WD_GET_SERVICE_STATE)
             return self._get_payload(self.WATCHDOG_port, datatype="integer")
-        self.wd_service_enable_channel = integer_channel(name=channel_name, size=1, write_function=_wd_enable)
+        self.wd_service_enable_channel = integer_channel(name=channel_name, size=1, write_function=lambda state : _set_wd_service_state(state))
         self.wd_service_enable_channel._read = _get_wd_service_state
         return self._add_channel(self.wd_service_enable_channel)
 
+    def add_channel_wd_target_addr7(self, channel_name):
+        def _set_wd_target_addr7(address):
+            payload = WD_SET_ADDR7 + int.to_bytes(address, length=1, byteorder="big").decode("latin-1")
+            self._send_payload(port=self.WATCHDOG_port, payload=payload)
+        def _get_wd_target_addr7():
+            self._send_payload(port=self.WATCHDOG_port, payload=WD_GET_ADDR7)
+            return self._get_payload(port=self.WATCHDOG_port, datatype="integer")
+        self.wd_set_wd_target_addr7 = channel(channel_name, write_function=lambda address: _set_wd_target_addr7(address))
+        self.wd_set_wd_target_addr7._read = _get_wd_target_addr7
+        return self._add_channel(self.wd_set_wd_target_addr7)
+
+    def add_channel_wd_crc_polynomial(self, channel_name):
+        def _set_wd_crc_polynomial(polynomial):
+            payload = WD_SET_CRC_POLY + int.to_bytes(polynomial, length=1, byteorder="big").decode("latin-1")
+            self._send_payload(port=self.WATCHDOG_port, payload=payload)
+        def _get_wd_crc_polynomial():
+            self._send_payload(port=self.WATCHDOG_port, payload=WD_GET_CRC_POLY)
+            return self._get_payload(port=self.WATCHDOG_port, datatype="integer")
+        self.wd_set_wd_crc_polynomial = channel(channel_name, write_function=lambda polynomial: _set_wd_crc_polynomial(polynomial))
+        self.wd_set_wd_crc_polynomial._read = _get_wd_crc_polynomial
+        return self._add_channel(self.wd_set_wd_crc_polynomial)
+
+    def add_channel_wd_use_pec(self, channel_name):
+        def _set_wd_use_pec(value):
+            payload = WD_SET_USE_PEC + int.to_bytes(1 if value else 0, length=1, byteorder="big").decode("latin-1")
+            self._send_payload(port=self.WATCHDOG_port, payload=payload)
+        def _get_wd_use_pec():
+            self._send_payload(port=self.WATCHDOG_port, payload=WD_GET_USE_PEC)
+            return self._get_payload(port=self.WATCHDOG_port, datatype="integer")
+        self.wd_set_wd_use_pec = channel(channel_name, write_function=lambda value: _set_wd_use_pec(value))
+        self.wd_set_wd_use_pec._read = _get_wd_use_pec
+        return self._add_channel(self.wd_set_wd_use_pec)
+
     def add_channel_wd_method(self, channel_name):
-        def _wd_set_service_method(method):
-            paylaod = None
+        def _set_wd_service_method(method):
             if method in ["LOOKUP", WD_SERVICE_METHOD_LOOKUP]:
-                payload = WD_SET_METHOD_LOOKUP_TABLE
+                payload = WD_SET_SERVICE_METHOD + int.to_bytes(WD_SERVICE_METHOD_LOOKUP, length=1, byteorder="big").decode("latin-1")
             elif method in ["ALGORITHMIC", WD_SERVICE_METHOD_ALGORITHMIC]:
-                payload = WD_SET_METHOD_ALGORITHMIC
+                payload = WD_SET_SERVICE_METHOD + int.to_bytes(WD_SERVICE_METHOD_ALGORITHMIC, length=1, byteorder="big").decode("latin-1")
             else:
-                raise ValueError((f'\n\nBCB606: Sorry don\'t know how to set watchdog service method to "{method}".'))
+                payload = None
+                raise ValueError(f'\n\nBCB606: Sorry don\'t know how to set watchdog service method to "{method}".')
             if payload != None:
                 self._send_payload(port=self.WATCHDOG_port, payload=payload)
         def _get_wd_service_method():
             self._send_payload(port=self.WATCHDOG_port, payload=WD_GET_SERVICE_METHOD)
             return self._get_payload(self.WATCHDOG_port, datatype="integer")
-        self.wd_method_channel = channel(name=channel_name, write_function=_wd_set_service_method)
+        self.wd_method_channel = channel(name=channel_name, write_function=lambda method: _set_wd_service_method(method))
         self.wd_method_channel._read = _get_wd_service_method
         self.wd_method_channel.add_preset("LOOKUP", "Use the Lookup Table Method")
         self.wd_method_channel.add_preset("ALGORITHMIC", "Use the Algorithmic Method")
@@ -226,4 +301,3 @@ class BCB606(instrument):
         self.wd_service_time_channel.write(48000)
         self.wd_service_enable_channel.write(True)
         self.enablepin_channel.write("ON")
-        

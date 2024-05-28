@@ -33,7 +33,7 @@
 #define ID_OUTBOX_SIZE              IDENTIFY_PAYLOAD_SIZE
 
 #define SMBUS_INBOX_SIZE            START_OF_SMBUS_DATA_IN + 2*256 // Write list will have: [REG|DATA|REG|DATA....]
-#define SMBUS_OUTBOX_SIZE           256
+#define SMBUS_OUTBOX_SIZE           256 + 1 // + 1 byte for status
 
 #define WDDIS_PIN_INBOX_SIZE        2
 #define WDDIS_PIN_OUTBOX_SIZE       1
@@ -48,10 +48,10 @@
 #define WATCHDOG_OUTBOX_SIZE        4
 
 #define EEPROM_INBOX_SIZE           START_OF_SMBUS_DATA_IN + 2 // Must support Write Word
-#define EEPROM_OUTBOX_SIZE          1
+#define EEPROM_OUTBOX_SIZE          1 + 1 // + 1 byte for status
 
 #define TMP117_INBOX_SIZE           START_OF_SMBUS_DATA_IN + 2 // Must support Write Word
-#define TMP117_OUTBOX_SIZE          2
+#define TMP117_OUTBOX_SIZE          2 + 1 // + 1 byte for status
 
 /****************************************************************************
  * Mailbox Externs for the clients to find                                  *

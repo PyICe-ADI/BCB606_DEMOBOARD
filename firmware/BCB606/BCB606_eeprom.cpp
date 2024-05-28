@@ -6,7 +6,7 @@
 #include "BCB606_eeprom.h"
 
 /****************************************************************************
- * Set the pin state                                                        *
+ * Set and Get EEPROM Data                                                  *
  ****************************************************************************/
 void BCB606_eeprom_services()
 {
@@ -22,13 +22,18 @@ void BCB606_eeprom_services()
                                                         eeprom_mailbox.inbox[USE_PEC],
                                                         eeprom_mailbox.inbox[START_OF_SMBUS_DATA_IN],
                                                         eeprom_mailbox.inbox[START_OF_SMBUS_DATA_IN + 1]);
+                 eeprom_mailbox.outbox[START_OF_DATA_OUT] = reply.status;
+                 eeprom_mailbox.outbox_msg_size = 1;
+                 eeprom_mailbox.outbox_status = PACKET_PRESENT;
                  break;
             case SMBUS_RECEIVE_BYTE:
                  eeprom_mailbox.to_id = eeprom_mailbox.from_id;
                  eeprom_mailbox.outbox_msg_size = EEPROM_OUTBOX_SIZE;
                  reply = softport_SMBUS_receive_byte(   eeprom_mailbox.inbox[ADDR7],
                                                         eeprom_mailbox.inbox[USE_PEC]);
-                 eeprom_mailbox.outbox[START_OF_DATA_OUT] = reply.lo_byte;
+                 eeprom_mailbox.outbox[START_OF_DATA_OUT] = reply.status;
+                 eeprom_mailbox.outbox[START_OF_DATA_OUT + 1] = reply.lo_byte;
+                 eeprom_mailbox.outbox_msg_size = 2;
                  eeprom_mailbox.outbox_status = PACKET_PRESENT;
                  break;
         }
