@@ -39,19 +39,4 @@
 #define START_OF_SMBUS_DATA_IN  5 // Data goes from here to the remainder of the payload
 #define START_OF_DATA_OUT       0
 
-/****************************************************************************
- * Return Byte Error Codes                                                  *
- ****************************************************************************/
-#define SMBUS_SUCCESS                   0   Transaction Successful!!!
-#define SMBUS_UNIMPLEMENTED             1   Requested Transaction Unimplemented
-#define SMBUS_START_STOP_ERROR          2   Failure During a Start or Stop (Stuck Bus?)
-#define SMBUS_WRITE_ADDRESS_ACK_ERROR   3   Acknowledge Error On Write Address
-#define SMBUS_READ_ADDRESS_ACK_ERROR    4   Acknowledge Error On Read Address
-#define SMBUS_COMMAND_CODE_ACK_ERROR    5   Acknowledge Error On Command Code
-#define SMBUS_DATA_LOW_ACK_ERROR        6   Acknowledge Error On Data Low
-#define SMBUS_DATA_HIGH_ACK_ERROR       7   Acknowledge Error On Data High
-#define SMBUS_PEC_VALUE_ERROR           8   Wrong PEC value Error
-#define SMBUS_PEC_ACK_ERROR             9  Acknowledge Error on PEC
-#define SMBUS_UNKNOWN_ERROR             10  Unknown Error (Too onerous to specify)
-
 #endif
