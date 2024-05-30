@@ -125,14 +125,18 @@ const PROGMEM uint8_t crc8_table[256] =
   0XE6, 0XE1, 0XE8, 0XEF, 0XFA, 0XFD, 0XF4, 0XF3
 };
 
+/****************************************************************************
+ * Get the PEC CRC Table                                                    *
+ ****************************************************************************/
 //#define crc8(data,crc) (crc8_table[(data) ^ (crc)])
-
 uint8_t crc8(uint8_t data, uint8_t crc)
 {
   return crc8_table[data ^ crc];
 }
 #endif //STOWE_CRC_TABLE
-
+/****************************************************************************
+ * Write Word PEC Value                                                     *
+ ****************************************************************************/
 uint8_t pec_write_word(uint8_t address, uint8_t command_code, uint16_t data)
 {
   uint8_t remainder;
@@ -142,7 +146,9 @@ uint8_t pec_write_word(uint8_t address, uint8_t command_code, uint16_t data)
   remainder = crc8((data >> 8) & 0xFF, remainder);
   return remainder; //Returns final byte to be sent to slave device before Stop condition.
 }
-
+/****************************************************************************
+ * Read Word PEC Value                                                      *
+ ****************************************************************************/
 uint8_t pec_read_word(uint8_t address, uint8_t command_code, uint16_t data)
 {
   uint8_t remainder;
@@ -153,16 +159,9 @@ uint8_t pec_read_word(uint8_t address, uint8_t command_code, uint16_t data)
   remainder = crc8((data >> 8) & 0xFF, remainder);
   return remainder; //Returns expected PEC byte to be received from slave device before Stop condition.
 }
-
-uint8_t pec_read_word_test(uint8_t address, uint8_t command_code, uint16_t data, uint8_t pec)
-{
-  uint8_t remainder;
-  remainder = pec_read_word(address, command_code, data);
-  //return (remainder == pec); //Alternative implementation
-  remainder = crc8(pec, remainder);
-  return remainder; //Returns 0 for no errors.
-}
-
+/****************************************************************************
+ * Write Byte PEC Value                                                     *
+ ****************************************************************************/
 uint8_t pec_write_byte(uint8_t address, uint8_t command_code, uint8_t data)
 {
   uint8_t remainder;
@@ -171,7 +170,9 @@ uint8_t pec_write_byte(uint8_t address, uint8_t command_code, uint8_t data)
   remainder = crc8(data, remainder);
   return remainder; //Returns final byte to be sent to slave device before Stop condition.
 }
-
+/****************************************************************************
+ * Read Byte PEC Value                                                      *
+ ****************************************************************************/
 uint8_t pec_read_byte(uint8_t address, uint8_t command_code, uint8_t data)
 {
   uint8_t remainder;
@@ -181,11 +182,24 @@ uint8_t pec_read_byte(uint8_t address, uint8_t command_code, uint8_t data)
   remainder = crc8(data, remainder);
   return remainder; //Returns expected PEC byte to be received from slave device before Stop condition.
 }
-
+/****************************************************************************
+ * Test Read-Byte transaction for PEC Correctness                           *
+ ****************************************************************************/
 uint8_t pec_read_byte_test(uint8_t address, uint8_t command_code, uint8_t data, uint8_t pec)
 {
   uint8_t remainder;
   remainder = pec_read_byte(address, command_code, data);
+  //return (remainder == pec); //Alternative implementation
+  remainder = crc8(pec, remainder);
+  return remainder; //Returns 0 for no errors.
+}
+/****************************************************************************
+ * Test Read-Word transaction for PEC Correctness                           *
+ ****************************************************************************/
+uint8_t pec_read_word_test(uint8_t address, uint8_t command_code, uint16_t data, uint8_t pec)
+{
+  uint8_t remainder;
+  remainder = pec_read_word(address, command_code, data);
   //return (remainder == pec); //Alternative implementation
   remainder = crc8(pec, remainder);
   return remainder; //Returns 0 for no errors.

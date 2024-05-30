@@ -25,7 +25,10 @@ SMBUS_reply read_register(uint8_t address, uint8_t command_code, uint8_t use_pec
     if (use_pec)
     {
         pec = Wire.read();
-        reply.status = pec_read_byte_test(address, command_code, reply.lo_byte, pec)==0 ? 0 : SMBUS_PEC_VALUE_ERROR; // Pulls another byte out of the buffer. TODO Make work with WORDs
+        if (data_size==BYTE_SIZE)
+            reply.status = pec_read_byte_test(address, command_code, reply.lo_byte, pec)==0 ? 0 : SMBUS_PEC_VALUE_ERROR; // Pulls another byte out of the buffer.
+        else
+            reply.status = pec_read_word_test(address, command_code, reply.hi_byte<<8 | reply.lo_byte, pec)==0 ? 0 : SMBUS_PEC_VALUE_ERROR; // Pulls another byte out of the buffer.
     }
     switch(wire_end_error)
     {
@@ -51,7 +54,13 @@ SMBUS_reply write_register(uint8_t address, uint8_t command_code, uint8_t use_pe
     Wire.write(command_code);
     Wire.write(lo_byte);
     if (data_size==WORD_SIZE) Wire.write(hi_byte);
-    if (use_pec) Wire.write(pec_write_byte(address, command_code, lo_byte)); // TODO make support PEC for Write Word too !!!!
+    if (use_pec)
+    {
+        if (data_size==BYTE_SIZE)
+            Wire.write(pec_write_byte(address, command_code, lo_byte));
+        else
+            Wire.write(pec_write_word(address, command_code, hi_byte<<8 | lo_byte));
+    }
     wire_end_error = Wire.endTransmission(true);
     switch(wire_end_error)
     {

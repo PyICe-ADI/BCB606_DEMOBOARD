@@ -46,20 +46,27 @@ void set_register_list()
 /****************************************************************************
  * Retrieve and Send out the registers                                      *
  ****************************************************************************/
+// Output Structure (DATA HIGH for WORD mode only)
+//┌────────┬──────────┬───────────┬┬────────┬──────────┬───────────┬┬─────┐
+//│ STATUS │ DATA LOW │[DATA HIGH]││ STATUS │ DATA LOW │[DATA HIGH]││ ... │
+//└────────┴──────────┴───────────┴┴────────┴──────────┴───────────┴┴─────┘
 void read_register_list()
 {
     SMBUS_reply reply={.status=0, .lo_byte=0, .hi_byte=0};
-    for (uint16_t cmnd_code=0; cmnd_code < SMBUS_read_list_size; cmnd_code++)   // needs to get as high as 256
+    uint8_t increment = smbus_services_mailbox.inbox[DATA_SIZE] / BYTE_SIZE + 1;    // Need Bytes not Bits
+    for (uint16_t cmnd_code=0; cmnd_code < SMBUS_read_list_size; cmnd_code++)       // Needs to get as high as 256
     {
         reply = read_register(  smbus_services_mailbox.inbox[ADDR7],
                                 SMBUS_cmnd_code_list[(uint8_t)cmnd_code],
                                 smbus_services_mailbox.inbox[USE_PEC],
                                 smbus_services_mailbox.inbox[DATA_SIZE]);
-        smbus_services_mailbox.outbox[START_OF_DATA_OUT] = reply.status;
-        smbus_services_mailbox.outbox[(uint8_t)cmnd_code + START_OF_DATA_OUT + 1] = reply.lo_byte;  // TODO make support Word parts too?
+        smbus_services_mailbox.outbox[(uint8_t)cmnd_code*increment + START_OF_DATA_OUT + 0] = reply.status;       // Staus byte per cmnd_code leads the way
+        smbus_services_mailbox.outbox[(uint8_t)cmnd_code*increment + START_OF_DATA_OUT + 1] = reply.lo_byte;      // Low byte or only byte
+        if (smbus_services_mailbox.inbox[DATA_SIZE]==WORD_SIZE)
+            smbus_services_mailbox.outbox[(uint8_t)cmnd_code*increment + START_OF_DATA_OUT + 2] = reply.hi_byte;  // Only output if 16 bit WORD expected
     }
     smbus_services_mailbox.to_id = smbus_services_mailbox.from_id;
-    smbus_services_mailbox.outbox_msg_size = SMBUS_read_list_size + 1;
+    smbus_services_mailbox.outbox_msg_size = smbus_services_mailbox.inbox[DATA_SIZE]==WORD_SIZE ? 3*SMBUS_read_list_size : 2*SMBUS_read_list_size;
     smbus_services_mailbox.outbox_status = PACKET_PRESENT;
 }
 /****************************************************************************
@@ -73,12 +80,12 @@ void smbus_read_register()
                             smbus_services_mailbox.inbox[USE_PEC],
                             smbus_services_mailbox.inbox[DATA_SIZE]);
                             
-    smbus_services_mailbox.outbox[START_OF_DATA_OUT] = reply.status;
-    smbus_services_mailbox.outbox[START_OF_DATA_OUT + 1] = reply.lo_byte;
+    smbus_services_mailbox.outbox[START_OF_DATA_OUT + 0] = reply.status;        // Staus byte leads the way
+    smbus_services_mailbox.outbox[START_OF_DATA_OUT + 1] = reply.lo_byte;       // Low Byte or only byte next
     if (smbus_services_mailbox.inbox[DATA_SIZE]==WORD_SIZE)
-        smbus_services_mailbox.outbox[START_OF_DATA_OUT + 2] = reply.hi_byte;
+        smbus_services_mailbox.outbox[START_OF_DATA_OUT + 2] = reply.hi_byte;   // High byte only if 16 bit WORD is expected
     smbus_services_mailbox.to_id = smbus_services_mailbox.from_id;
-    smbus_services_mailbox.outbox_msg_size = smbus_services_mailbox.inbox[DATA_SIZE] / BYTE_SIZE + 1;
+    smbus_services_mailbox.outbox_msg_size = smbus_services_mailbox.inbox[DATA_SIZE]==WORD_SIZE ? 3 : 2;
     smbus_services_mailbox.outbox_status = PACKET_PRESENT;
 }
 /****************************************************************************
@@ -92,7 +99,8 @@ void smbus_write_register()
                             smbus_services_mailbox.inbox[USE_PEC],
                             smbus_services_mailbox.inbox[DATA_SIZE],
                             smbus_services_mailbox.inbox[START_OF_SMBUS_DATA_IN],
-                            smbus_services_mailbox.inbox[DATA_SIZE]==BYTE_SIZE ? 0 : smbus_services_mailbox.inbox[START_OF_SMBUS_DATA_IN + 1]);
+                            smbus_services_mailbox.inbox[DATA_SIZE]==WORD_SIZE ? smbus_services_mailbox.inbox[START_OF_SMBUS_DATA_IN + 1] : 0);
+
     smbus_services_mailbox.outbox_msg_size = 1;
     smbus_services_mailbox.outbox[START_OF_DATA_OUT] = reply.status;
     smbus_services_mailbox.outbox_status = PACKET_PRESENT;
@@ -100,21 +108,24 @@ void smbus_write_register()
 /****************************************************************************
  * Write a bunch of registers to the part                                   *
  ****************************************************************************/
-void write_register_list()
+void write_register_list() // UNTESTED!!!! //
 {
     SMBUS_reply reply={.status=0, .lo_byte=0, .hi_byte=0};
     // Message is address/data pairs: [ A,D | A,D | A,D | A,D | A,D | A,D | A,D ]
     if (!(smbus_services_mailbox.inbox_msg_size % 2)) // Odd number of address/data pairs? No soup for you!
     {
         for (uint16_t cmnd_code=0; cmnd_code < (smbus_services_mailbox.inbox_msg_size-START_OF_SMBUS_DATA_IN)/2; cmnd_code+=2)
+        {
             reply = write_register( smbus_services_mailbox.inbox[ADDR7],
                                     smbus_services_mailbox.inbox[START_OF_SMBUS_DATA_IN + cmnd_code],
                                     smbus_services_mailbox.inbox[USE_PEC],
                                     smbus_services_mailbox.inbox[DATA_SIZE],
                                     smbus_services_mailbox.inbox[START_OF_SMBUS_DATA_IN + cmnd_code + 1],
-                                    smbus_services_mailbox.inbox[DATA_SIZE]==BYTE_SIZE ? 0 : smbus_services_mailbox.inbox[START_OF_SMBUS_DATA_IN + cmnd_code + 2]);
-    smbus_services_mailbox.outbox[START_OF_DATA_OUT] = reply.status;
-    smbus_services_mailbox.outbox_msg_size = 1;
+                                    smbus_services_mailbox.inbox[DATA_SIZE]==WORD_SIZE ? 0 : smbus_services_mailbox.inbox[START_OF_SMBUS_DATA_IN + cmnd_code + 2]);
+
+            smbus_services_mailbox.outbox[START_OF_DATA_OUT + cmnd_code] = reply.status;
+        }
+    smbus_services_mailbox.outbox_msg_size = smbus_services_mailbox.inbox_msg_size / 2; // One status byte per transaction in the list
     smbus_services_mailbox.outbox_status = PACKET_PRESENT;
     }
 }

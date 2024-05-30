@@ -32,8 +32,8 @@
 #define ID_INBOX_SIZE               1 + IDENTIFY_PAYLOAD_SIZE
 #define ID_OUTBOX_SIZE              IDENTIFY_PAYLOAD_SIZE
 
-#define SMBUS_INBOX_SIZE            START_OF_SMBUS_DATA_IN + 2*256 // Write list will have: [REG|DATA|REG|DATA....]
-#define SMBUS_OUTBOX_SIZE           256 + 1 // + 1 byte for status
+#define SMBUS_INBOX_SIZE            START_OF_SMBUS_DATA_IN + 3 * 256    // Write list will have: [ADDR|DATA|ADDR|DATA....] where size(data) can be 16
+#define SMBUS_OUTBOX_SIZE           3 * 256                             // Supports read word plus 1 status byte per read word
 
 #define WDDIS_PIN_INBOX_SIZE        2
 #define WDDIS_PIN_OUTBOX_SIZE       1
