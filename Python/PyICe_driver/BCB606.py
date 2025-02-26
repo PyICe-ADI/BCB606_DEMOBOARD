@@ -58,11 +58,12 @@ IDENT_GET_SERIALNUM             = "\x03"
 class BCB606(instrument):
     ''' Stowe Demo Board, a base board that accepts the Stowe bench evaluation target board but can be given to customers.
         Has PyICe as a depdendency.'''
-    def __init__(self, channel_master, comport, verbose=False):
+    def __init__(self, channel_master, comport, verbose=False, interface_factory=None):
         self._base_name = 'BCB606'
         instrument.__init__(self, f"{self._base_name}")
         self.verbose = verbose
-        interface_factory   = lab_interfaces.interface_factory()
+        if interface_factory is None:
+            interface_factory = lab_interfaces.interface_factory()
         self.ENABLE_port    = interface_factory.get_labcomm_raw_interface(comport_name=comport, src_id=PYICE_GUI_ADDRESS, dest_id=ENABLE_PIN_ADDRESS,  baudrate=115200, timeout=4)
         self.RST_port       = interface_factory.get_labcomm_raw_interface(comport_name=comport, src_id=PYICE_GUI_ADDRESS, dest_id=RST_PIN_ADDRESS,     baudrate=115200, timeout=4)
         self.WDDIS_port     = interface_factory.get_labcomm_raw_interface(comport_name=comport, src_id=PYICE_GUI_ADDRESS, dest_id=WDDIS_PIN_ADDRESS,   baudrate=115200, timeout=4)
